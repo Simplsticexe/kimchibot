@@ -37,7 +37,18 @@ intents.members = True
 bot = commands.Bot(command_prefix="$", intents=intents)
 
 
-# ---------------- TRADING SYSTEM ----------------
+def random_transaction_id():
+    return str(random.randint(1000, 9999))
+
+def brainrot_price(ms: int) -> int:
+    anchors = [(1,50),(10,125),(50,290),(100,600),(150,900)]
+    for i in range(len(anchors)-1):
+        m1,r1 = anchors[i]
+        m2,r2 = anchors[i+1]
+        if m1 <= ms <= m2:
+            return round(r1 + (r2-r1)/(m2-m1)*(ms-m1))
+    return anchors[-1][1]
+
 class TradeModal(Modal):
     def __init__(self, action):
         super().__init__(title=f"{action} Request")
@@ -70,14 +81,6 @@ class TradeModal(Modal):
         if self.action == "Buy":
             price_text = f"{ms_amount} m/s ≈ ${ms_amount*0.25:,.2f}"
         else:
-            anchors = [(1,50),(10,125),(50,290),(100,600),(150,900)]
-            def brainrot_price(ms: int) -> int:
-                for i in range(len(anchors)-1):
-                    m1,r1 = anchors[i]
-                    m2,r2 = anchors[i+1]
-                    if m1 <= ms <= m2:
-                        return round(r1 + (r2-r1)/(m2-m1)*(ms-m1))
-                return anchors[-1][1]
             rbx = brainrot_price(ms_amount)
             price_text = f"We offer to buy your brainrot for {rbx} Robux"
 
@@ -116,15 +119,35 @@ async def on_interaction(interaction: discord.Interaction):
             return await interaction.response.send_message("Transaction not found.", ephemeral=True)
 
         transaction = transactions[tid]
-        channel = interaction.channel
         if custom_id.startswith("accept_"):
             transaction["status"] = "Accepted"
-            message_text = "Offer accepted. Wait until a staff responds."
+            message_text = "Offer accepted. Follow the rules below carefully."
+            
+            # create the follow-up embed
+            profile_url = f"https://www.roblox.com/users/{transaction['username']}/profile"
+            follow_embed = discord.Embed(
+                title="Offer Accepted",
+                description=(
+                    "Offer accepted. Follow the rules below carefully.\n"
+                    "Rules\n"
+                    "No time wasting.\n"
+                    "Join me immediately when instructed.\n"
+                    "Follow instructions carefully.\n"
+                    "Only text communication unless specified.\n\n"
+                    f"👤 Add This User\nUsername: {transaction['username']}\n"
+                    f"Profile: {profile_url}\n\n"
+                    "Type `sent` once you have sent the friend request."
+                ),
+                color=MAIN_COLOR
+            )
+            follow_embed.set_thumbnail(url=SERVER_ICON)
+
+            await interaction.response.send_message(message_text, ephemeral=True)
+            await interaction.channel.send(embed=follow_embed)
+
         else:
             transaction["status"] = "Declined"
-            message_text = "Offer declined. DM staff if needed."
-
-        await interaction.response.send_message(message_text, ephemeral=True)
+            await interaction.response.send_message("Offer declined. DM staff if needed.", ephemeral=True)
 
 @bot.command()
 async def transaction(ctx, tid: str):
@@ -137,7 +160,6 @@ async def transaction(ctx, tid: str):
         color=MAIN_COLOR
     )
     await ctx.send(embed=embed)
-
 # ---------------- TICKET PANEL ----------------
 @bot.command()
 async def ticketpanel(ctx):
