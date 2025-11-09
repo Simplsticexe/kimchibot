@@ -37,10 +37,19 @@ intents.members = True
 bot = commands.Bot(command_prefix="$", intents=intents)
 
 
+# ---------------- TRADING SYSTEM ----------------
+from discord.ui import Modal, TextInput, View, Button
+import discord
+import random
+
+transactions = {}  # store transactions
+MAIN_COLOR = 0x00ff00
+SERVER_ICON = "https://example.com/server_icon.png"
+
 def random_transaction_id():
     return str(random.randint(1000, 9999))
 
-def brainrot_price(ms: int) -> int:
+def brainrot_price(ms: float) -> int:
     anchors = [(1,50),(10,125),(50,290),(100,600),(150,900)]
     for i in range(len(anchors)-1):
         m1,r1 = anchors[i]
@@ -64,7 +73,7 @@ class TradeModal(Modal):
         username = self.username_input.value
         item_name = self.item_input.value
         try:
-            ms_amount = int(self.ms_input.value)
+            ms_amount = float(self.ms_input.value)
         except:
             return await interaction.response.send_message("Invalid m/s amount.", ephemeral=True)
 
@@ -119,16 +128,16 @@ async def on_interaction(interaction: discord.Interaction):
             return await interaction.response.send_message("Transaction not found.", ephemeral=True)
 
         transaction = transactions[tid]
+        view = None  # remove buttons after click
+
         if custom_id.startswith("accept_"):
             transaction["status"] = "Accepted"
-            message_text = "Offer accepted. Follow the rules below carefully."
-            
-            # create the follow-up embed
+            # offer accepted embed
             profile_url = f"https://www.roblox.com/users/{transaction['username']}/profile"
-            follow_embed = discord.Embed(
+            embed = discord.Embed(
                 title="Offer Accepted",
                 description=(
-                    "Offer accepted. Follow the rules below carefully.\n"
+                    "Offer accepted. Follow the rules below carefully.\n\n"
                     "Rules\n"
                     "No time wasting.\n"
                     "Join me immediately when instructed.\n"
@@ -140,14 +149,18 @@ async def on_interaction(interaction: discord.Interaction):
                 ),
                 color=MAIN_COLOR
             )
-            follow_embed.set_thumbnail(url=SERVER_ICON)
-
-            await interaction.response.send_message(message_text, ephemeral=True)
-            await interaction.channel.send(embed=follow_embed)
+            embed.set_thumbnail(url=SERVER_ICON)
+            await interaction.response.send_message(embed=embed)
 
         else:
             transaction["status"] = "Declined"
-            await interaction.response.send_message("Offer declined. DM staff if needed.", ephemeral=True)
+            embed = discord.Embed(
+                title="Offer Declined",
+                description=f"The {transaction['action']} offer for {transaction['item']} by {transaction['username']} has been declined.",
+                color=MAIN_COLOR
+            )
+            embed.set_thumbnail(url=SERVER_ICON)
+            await interaction.response.send_message(embed=embed)
 
 @bot.command()
 async def transaction(ctx, tid: str):
@@ -160,6 +173,7 @@ async def transaction(ctx, tid: str):
         color=MAIN_COLOR
     )
     await ctx.send(embed=embed)
+
 # ---------------- TICKET PANEL ----------------
 @bot.command()
 async def ticketpanel(ctx):
